@@ -1,0 +1,29 @@
+{
+  "name": "mycapapp",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "watch": "cds watch",
+    "deploy": "cds deploy --to sqlite:db/data.sqlite"
+  },
+  "dependencies": {
+    "@sap/cds": "^9.3.1",
+    "sqlite3": "^5"
+  },
+  "cds": {
+    "requires": {
+      "db": {
+        "kind": "sqlite",
+        "credentials": {
+          "database": "db/data.sqlite"
+        }
+      }
+    },
+    "hooks": {
+      "impl": "srv/handlers.js"
+    }
+  },
+  "devDependencies": {
+    "@cap-js/sqlite": "^2.0.2"
+  }
+}
