@@ -8,3 +8,16 @@ entity Books {
   createdAt : Timestamp;
   updatedAt : Timestamp;
 }
+
+entity Users {
+  key ID        : Integer;
+  username    : String(50);
+  email       : String(100);
+  password    : String(255);
+  firstName   : String(50);
+  lastName    : String(50);
+  role        : String(20) default 'user';
+  isActive    : Boolean default true;
+  createdAt   : Timestamp;
+  updatedAt   : Timestamp;
+}

@@ -9,18 +9,30 @@ const BookForm = ({ onSubmit, loading }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    console.log('Form submitted with data:', formData);
+    
     if (formData.title.trim() && formData.author.trim()) {
+      console.log('Calling onSubmit with:', formData);
       onSubmit(formData);
       setFormData({ title: '', author: '', stock: 0 });
+    } else {
+      console.log('Form validation failed');
     }
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'stock' ? parseInt(value) || 0 : value
-    }));
+    console.log(`Field ${name} changed to:`, value);
+    
+    setFormData(prev => {
+      const newFormData = {
+        ...prev,
+        [name]: name === 'stock' ? (value === '' ? 0 : Math.max(0, parseInt(value) || 0)) : value
+      };
+      
+      console.log('New form data:', newFormData);
+      return newFormData;
+    });
   };
 
   return (

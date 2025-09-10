@@ -1,0 +1,4 @@
+ID,username,email,password,firstName,lastName,role,isActive,createdAt,updatedAt
+1,admin,admin@bookmanager.com,admin123,Admin,User,admin,true,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+2,user1,user1@bookmanager.com,user123,John,Doe,user,true,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z
+3,user2,user2@bookmanager.com,user123,Jane,Smith,user,true,2024-01-01T00:00:00.000Z,2024-01-01T00:00:00.000Z

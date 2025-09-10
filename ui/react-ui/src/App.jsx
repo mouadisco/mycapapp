@@ -6,15 +6,21 @@ import Header from './components/Header';
 import BookForm from './components/BookForm';
 import BookLibrary from './components/BookLibrary';
 import Alert from './components/Alert';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './components/Login';
+
+// Import Contexts
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 // Import Styles
 import './styles/design-system.css';
 
-function App() {
+function AppContent() {
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const { login } = useAuth();
 
   // Load books from API
   const loadBooks = async () => {
@@ -41,11 +47,18 @@ function App() {
       setError('');
       setSuccess('');
       
-      await axios.post('/odata/v4/catalog/Books', {
+      console.log('handleAddBook received:', bookData);
+      
+      const payload = {
         title: bookData.title.trim(),
         author: bookData.author.trim(),
-        stock: Number(bookData.stock) || 0
-      });
+        stock: Math.max(0, Number(bookData.stock) || 0)
+      };
+      
+      console.log('Sending to API:', payload);
+      
+      const response = await axios.post('/odata/v4/catalog/Books', payload);
+      console.log('API response:', response.data);
       
       setSuccess(`Book "${bookData.title}" added successfully!`);
       await loadBooks();
@@ -53,6 +66,7 @@ function App() {
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
+      console.error('Error adding book:', err);
       setError(err?.response?.data?.error?.message || err?.message || 'Failed to add book');
     }
   };
@@ -88,43 +102,53 @@ function App() {
   const clearSuccess = () => setSuccess('');
 
   return (
-    <div className="app">
-      <Header />
-      
-      <main className="container">
-        {/* Success Alert */}
-        {success && (
-          <Alert 
-            type="success" 
-            message={success} 
-            onClose={clearSuccess}
+    <ProtectedRoute>
+      <div className="app">
+        <Header />
+        
+        <main className="container">
+          {/* Success Alert */}
+          {success && (
+            <Alert 
+              type="success" 
+              message={success} 
+              onClose={clearSuccess}
+            />
+          )}
+          
+          {/* Error Alert */}
+          {error && (
+            <Alert 
+              type="error" 
+              message={error} 
+              onClose={clearError}
+            />
+          )}
+          
+          {/* Add Book Form */}
+          <BookForm 
+            onSubmit={handleAddBook}
+            loading={loading}
           />
-        )}
-        
-        {/* Error Alert */}
-        {error && (
-          <Alert 
-            type="error" 
-            message={error} 
-            onClose={clearError}
+          
+          {/* Book Library */}
+          <BookLibrary 
+            books={books}
+            loading={loading}
+            onUpdateStock={handleUpdateStock}
+            onDelete={handleDeleteBook}
           />
-        )}
-        
-        {/* Add Book Form */}
-        <BookForm 
-          onSubmit={handleAddBook}
-          loading={loading}
-        />
-        
-        {/* Book Library */}
-        <BookLibrary 
-          books={books}
-          loading={loading}
-          onUpdateStock={handleUpdateStock}
-          onDelete={handleDeleteBook}
-        />
-      </main>
-    </div>
+        </main>
+      </div>
+    </ProtectedRoute>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

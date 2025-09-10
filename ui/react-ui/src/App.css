@@ -8,12 +8,21 @@
   min-height: 100vh;
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   width: 100%;
+  max-width: 100%;
   overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 /* Smooth transitions for all interactive elements */
 * {
   transition: all 0.2s ease;
+}
+
+/* Prevent horizontal overflow globally */
+* {
+  max-width: 100%;
 }
 
 /* Focus styles for accessibility */
@@ -39,4 +48,10 @@ input:focus-visible {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--gray-400);
+}
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100vw; /* ou 100% */
+  overflow-x: hidden;
 }

@@ -1,4 +1,5 @@
 import React from 'react';
+import UserProfile from './UserProfile';
 
 const Header = () => {
   return (
@@ -12,11 +13,7 @@ const Header = () => {
           <p className="tagline">Professional Library Management System</p>
         </div>
         <div className="header-right">
-          <div className="tech-stack">
-            <span className="tech-badge">CAP</span>
-            <span className="tech-badge">SQLite</span>
-            <span className="tech-badge">React</span>
-          </div>
+          <UserProfile />
         </div>
       </div>
     </header>
