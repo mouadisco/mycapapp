@@ -1,23 +1,25 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { getStockColor, getStockIcon } from '../utils/helpers';
 
-const BookCard = ({ book, onUpdateStock, onDelete }) => {
+const BookCard = React.memo(({ book, onUpdateStock, onDelete }) => {
   const { isAdmin } = useAuth();
   const { ID, title, author, stock } = book;
   
-  const getStockColor = (stock) => {
-    if (stock > 10) return 'success';
-    if (stock > 5) return 'warning';
-    if (stock > 0) return 'info';
-    return 'danger';
-  };
+  const stockColor = getStockColor(stock);
+  const stockIcon = getStockIcon(stock);
 
-  const getStockIcon = (stock) => {
-    if (stock > 10) return '📚';
-    if (stock > 5) return '📖';
-    if (stock > 0) return '📗';
-    return '📕';
-  };
+  const handleIncrementStock = useCallback(() => {
+    onUpdateStock(ID, { stock: stock + 1 });
+  }, [ID, stock, onUpdateStock]);
+
+  const handleDecrementStock = useCallback(() => {
+    onUpdateStock(ID, { stock: Math.max(stock - 1, 0) });
+  }, [ID, stock, onUpdateStock]);
+
+  const handleDelete = useCallback(() => {
+    onDelete(ID);
+  }, [ID, onDelete]);
 
   return (
     <div className="book-card">
@@ -33,8 +35,8 @@ const BookCard = ({ book, onUpdateStock, onDelete }) => {
         </div>
         
         <div className="book-stock">
-          <span className="stock-icon">{getStockIcon(stock)}</span>
-          <span className={`stock-value stock-${getStockColor(stock)}`}>
+          <span className="stock-icon">{stockIcon}</span>
+          <span className={`stock-value stock-${stockColor}`}>
             {stock} {stock === 1 ? 'copy' : 'copies'}
           </span>
         </div>
@@ -44,7 +46,7 @@ const BookCard = ({ book, onUpdateStock, onDelete }) => {
         <div className="book-actions">
           <button
             className="btn btn-success btn-sm"
-            onClick={() => onUpdateStock(ID, { stock: stock + 1 })}
+            onClick={handleIncrementStock}
             title="Add one copy"
           >
             <span className="icon">➕</span>
@@ -52,7 +54,7 @@ const BookCard = ({ book, onUpdateStock, onDelete }) => {
           
           <button
             className="btn btn-warning btn-sm"
-            onClick={() => onUpdateStock(ID, { stock: Math.max(stock - 1, 0) })}
+            onClick={handleDecrementStock}
             disabled={stock === 0}
             title="Remove one copy"
           >
@@ -61,7 +63,7 @@ const BookCard = ({ book, onUpdateStock, onDelete }) => {
           
           <button
             className="btn btn-danger btn-sm"
-            onClick={() => onDelete(ID)}
+            onClick={handleDelete}
             title="Delete book"
           >
             <span className="icon">🗑️</span>
@@ -70,6 +72,8 @@ const BookCard = ({ book, onUpdateStock, onDelete }) => {
       )}
     </div>
   );
-};
+});
+
+BookCard.displayName = 'BookCard';
 
 export default BookCard;

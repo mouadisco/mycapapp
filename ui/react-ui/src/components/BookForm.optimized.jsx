@@ -1,46 +1,60 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { validateBook, sanitizeData } from '../utils/validation';
+import { MESSAGES } from '../constants';
 
-const BookForm = ({ onSubmit, loading }) => {
+const BookForm = React.memo(({ onSubmit, loading }) => {
   const { isAdmin } = useAuth();
   const [formData, setFormData] = useState({
     title: '',
     author: '',
     stock: 0
   });
+  const [errors, setErrors] = useState({});
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log('Form submitted with data:', formData);
-    
-    if (formData.title.trim() && formData.author.trim()) {
-      console.log('Calling onSubmit with:', formData);
-      onSubmit(formData);
-      setFormData({ title: '', author: '', stock: 0 });
-    } else {
-      console.log('Form validation failed');
-    }
-  };
+  // Ne pas afficher le formulaire si l'utilisateur n'est pas admin
+  if (!isAdmin()) {
+    return null;
+  }
 
-  const handleChange = (e) => {
+  const handleChange = useCallback((e) => {
     const { name, value } = e.target;
-    console.log(`Field ${name} changed to:`, value);
     
     setFormData(prev => {
       const newFormData = {
         ...prev,
         [name]: name === 'stock' ? (value === '' ? 0 : Math.max(0, parseInt(value) || 0)) : value
       };
-      
-      console.log('New form data:', newFormData);
       return newFormData;
     });
-  };
 
-  // Ne pas afficher le formulaire si l'utilisateur n'est pas admin
-  if (!isAdmin()) {
-    return null;
-  }
+    // Effacer l'erreur du champ modifié
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+  }, [errors]);
+
+  const handleSubmit = useCallback((e) => {
+    e.preventDefault();
+    
+    // Validation
+    const { isValid, errors: validationErrors } = validateBook(formData);
+    if (!isValid) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    // Nettoyer et soumettre les données
+    const sanitizedData = sanitizeData(formData);
+    onSubmit(sanitizedData);
+    
+    // Réinitialiser le formulaire
+    setFormData({ title: '', author: '', stock: 0 });
+    setErrors({});
+  }, [formData, onSubmit]);
 
   return (
     <section className="book-form-section">
@@ -61,10 +75,12 @@ const BookForm = ({ onSubmit, loading }) => {
             name="title"
             value={formData.title}
             onChange={handleChange}
-            className="form-input"
+            className={`form-input ${errors.title ? 'error' : ''}`}
             placeholder="Enter book title"
             required
+            disabled={loading}
           />
+          {errors.title && <span className="error-message">{errors.title}</span>}
         </div>
         
         <div className="form-group">
@@ -75,10 +91,12 @@ const BookForm = ({ onSubmit, loading }) => {
             name="author"
             value={formData.author}
             onChange={handleChange}
-            className="form-input"
+            className={`form-input ${errors.author ? 'error' : ''}`}
             placeholder="Enter author name"
             required
+            disabled={loading}
           />
+          {errors.author && <span className="error-message">{errors.author}</span>}
         </div>
         
         <div className="form-group">
@@ -89,10 +107,12 @@ const BookForm = ({ onSubmit, loading }) => {
             name="stock"
             value={formData.stock}
             onChange={handleChange}
-            className="form-input"
+            className={`form-input ${errors.stock ? 'error' : ''}`}
             min="0"
             placeholder="0"
+            disabled={loading}
           />
+          {errors.stock && <span className="error-message">{errors.stock}</span>}
         </div>
         
         <button 
@@ -115,6 +135,8 @@ const BookForm = ({ onSubmit, loading }) => {
       </form>
     </section>
   );
-};
+});
+
+BookForm.displayName = 'BookForm';
 
 export default BookForm;

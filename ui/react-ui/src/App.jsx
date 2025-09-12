@@ -5,6 +5,8 @@ import axios from 'axios';
 import Header from './components/Header';
 import BookForm from './components/BookForm';
 import BookLibrary from './components/BookLibrary';
+import UserManagement from './components/UserManagement';
+import AdminNavigation from './components/AdminNavigation';
 import Alert from './components/Alert';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './components/Login';
@@ -20,7 +22,8 @@ function AppContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const { login } = useAuth();
+  const [activeTab, setActiveTab] = useState('books');
+  const { login, isAdmin } = useAuth();
 
   // Load books from API
   const loadBooks = async () => {
@@ -124,20 +127,50 @@ function AppContent() {
               onClose={clearError}
             />
           )}
+
+          {/* Admin Navigation */}
+          {isAdmin() && (
+            <AdminNavigation 
+              activeTab={activeTab} 
+              onTabChange={setActiveTab} 
+            />
+          )}
           
-          {/* Add Book Form */}
-          <BookForm 
-            onSubmit={handleAddBook}
-            loading={loading}
-          />
-          
-          {/* Book Library */}
-          <BookLibrary 
-            books={books}
-            loading={loading}
-            onUpdateStock={handleUpdateStock}
-            onDelete={handleDeleteBook}
-          />
+          {/* Content based on user role and active tab */}
+          {isAdmin() ? (
+            // Admin view with tabs
+            <>
+              {activeTab === 'books' && (
+                <>
+                  {/* Add Book Form */}
+                  <BookForm 
+                    onSubmit={handleAddBook}
+                    loading={loading}
+                  />
+                  
+                  {/* Book Library */}
+                  <BookLibrary 
+                    books={books}
+                    loading={loading}
+                    onUpdateStock={handleUpdateStock}
+                    onDelete={handleDeleteBook}
+                  />
+                </>
+              )}
+              
+              {activeTab === 'users' && (
+                <UserManagement />
+              )}
+            </>
+          ) : (
+            // Regular user view - only books (read-only)
+            <BookLibrary 
+              books={books}
+              loading={loading}
+              onUpdateStock={handleUpdateStock}
+              onDelete={handleDeleteBook}
+            />
+          )}
         </main>
       </div>
     </ProtectedRoute>
