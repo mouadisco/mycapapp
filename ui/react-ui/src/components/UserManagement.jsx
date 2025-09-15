@@ -1,188 +1,97 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState, useCallback } from 'react';
 import UserForm from './UserForm';
 import UserCard from './UserCard';
-import Alert from './Alert';
+import { useUsers } from '../hooks/useUsers';
+import { useAlert } from '../hooks/useAlert.jsx';
+import { MESSAGES } from '../constants';
 
 const UserManagement = () => {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  
+  const { showSuccess, showError } = useAlert();
+  const {
+    users,
+    loading,
+    error,
+    addUser,
+    updateUser,
+    deleteUser,
+    toggleUserStatus,
+    clearError
+  } = useUsers();
 
-  // Load users from API
-  const loadUsers = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      const response = await axios.get('/odata/v4/catalog/Users?$orderby=ID');
-      setUsers(response.data.value || response.data);
-    } catch (err) {
-      setError(err?.response?.data?.error?.message || err?.message || 'Échec du chargement des utilisateurs');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Load users on component mount
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
-  // Add new user
-  const handleAddUser = async (userData) => {
-    try {
-      setError('');
-      setSuccess('');
-      
-      console.log('handleAddUser received:', userData);
-      
-      const payload = {
-        username: userData.username.trim(),
-        email: userData.email.trim(),
-        password: userData.password.trim(),
-        firstName: userData.firstName.trim(),
-        lastName: userData.lastName.trim(),
-        role: userData.role,
-        isActive: userData.isActive
-      };
-      
-      console.log('Sending to API:', payload);
-      
-      const response = await axios.post('/odata/v4/catalog/Users', payload);
-      console.log('API response:', response.data);
-      
-      setSuccess(`Utilisateur "${userData.username}" ajouté avec succès !`);
-      await loadUsers();
+  // Gestionnaires optimisés avec useCallback
+  const handleAddUser = useCallback(async (userData) => {
+    const result = await addUser(userData);
+    if (result.success) {
+      showSuccess(result.message);
       setShowForm(false);
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      console.error('Error adding user:', err);
-      setError(err?.response?.data?.error?.message || err?.message || 'Échec de l\'ajout de l\'utilisateur');
+    } else {
+      showError(result.message);
     }
-  };
+  }, [addUser, showSuccess, showError]);
 
-  // Update user
-  const handleUpdateUser = async (userData) => {
-    try {
-      setError('');
-      setSuccess('');
-      
-      const payload = {
-        username: userData.username.trim(),
-        email: userData.email.trim(),
-        firstName: userData.firstName.trim(),
-        lastName: userData.lastName.trim(),
-        role: userData.role,
-        isActive: userData.isActive
-      };
-
-      // Only include password if provided
-      if (userData.password.trim()) {
-        payload.password = userData.password.trim();
-      }
-      
-      console.log('Updating user:', editingUser.ID, payload);
-      
-      await axios.patch(`/odata/v4/catalog/Users(${editingUser.ID})`, payload);
-      
-      setSuccess(`Utilisateur "${userData.username}" modifié avec succès !`);
-      await loadUsers();
+  const handleUpdateUser = useCallback(async (userData) => {
+    const result = await updateUser(editingUser.ID, userData);
+    if (result.success) {
+      showSuccess(result.message);
       setEditingUser(null);
       setShowForm(false);
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      console.error('Error updating user:', err);
-      setError(err?.response?.data?.error?.message || err?.message || 'Échec de la modification de l\'utilisateur');
+    } else {
+      showError(result.message);
     }
-  };
+  }, [updateUser, editingUser, showSuccess, showError]);
 
-  // Delete user
-  const handleDeleteUser = async (user) => {
-    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer l'utilisateur "${user.username}" ?`)) {
-      return;
+  const handleDeleteUser = useCallback(async (user) => {
+    if (window.confirm(MESSAGES.CONFIRM.DELETE_USER(user.username))) {
+      const result = await deleteUser(user.ID);
+      if (result.success) {
+        showSuccess(result.message);
+      } else {
+        showError(result.message);
+      }
     }
+  }, [deleteUser, showSuccess, showError]);
 
-    try {
-      setError('');
-      await axios.delete(`/odata/v4/catalog/Users(${user.ID})`);
-      setSuccess('Utilisateur supprimé avec succès !');
-      await loadUsers();
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError(err?.response?.data?.error?.message || err?.message || 'Échec de la suppression de l\'utilisateur');
+  const handleToggleActive = useCallback(async (user) => {
+    const result = await toggleUserStatus(user);
+    if (result.success) {
+      showSuccess(result.message);
+    } else {
+      showError(result.message);
     }
-  };
-
-  // Toggle user active status
-  const handleToggleActive = async (user) => {
-    try {
-      setError('');
-      await axios.patch(`/odata/v4/catalog/Users(${user.ID})`, {
-        isActive: !user.isActive
-      });
-      setSuccess(`Utilisateur ${!user.isActive ? 'activé' : 'désactivé'} avec succès !`);
-      await loadUsers();
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError(err?.response?.data?.error?.message || err?.message || 'Échec de la modification du statut');
-    }
-  };
+  }, [toggleUserStatus, showSuccess, showError]);
 
   // Handle form submission
-  const handleFormSubmit = (userData) => {
+  const handleFormSubmit = useCallback((userData) => {
     if (editingUser) {
       handleUpdateUser(userData);
     } else {
       handleAddUser(userData);
     }
-  };
+  }, [editingUser, handleUpdateUser, handleAddUser]);
 
   // Handle edit user
-  const handleEditUser = (user) => {
+  const handleEditUser = useCallback((user) => {
     setEditingUser(user);
     setShowForm(true);
-  };
+  }, []);
 
   // Handle cancel form
-  const handleCancelForm = () => {
+  const handleCancelForm = useCallback(() => {
     setShowForm(false);
     setEditingUser(null);
-  };
+  }, []);
 
-  // Clear alerts
-  const clearError = () => setError('');
-  const clearSuccess = () => setSuccess('');
+  // Affichage des erreurs
+  if (error) {
+    showError(error);
+    clearError();
+  }
 
   return (
     <div className="user-management">
-      {/* Success Alert */}
-      {success && (
-        <Alert 
-          type="success" 
-          message={success} 
-          onClose={clearSuccess}
-        />
-      )}
-      
-      {/* Error Alert */}
-      {error && (
-        <Alert 
-          type="error" 
-          message={error} 
-          onClose={clearError}
-        />
-      )}
 
       {/* User Form */}
       {showForm && (

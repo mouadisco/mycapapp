@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import React, { useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useAlert } from '../hooks/useAlert.jsx';
+import { userService } from '../services/api';
+import { validateLogin, sanitizeData } from '../utils/validation';
+import { MESSAGES } from '../constants';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -8,53 +11,54 @@ const Login = () => {
     password: ''
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
+  
   const { login } = useAuth();
+  const { showError } = useAlert();
 
-  const handleChange = (e) => {
+  const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
-  };
 
-  const handleSubmit = async (e) => {
+    // Effacer l'erreur du champ modifié
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+  }, [errors]);
+
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
+    
+    // Validation
+    const { isValid, errors: validationErrors } = validateLogin(formData);
+    if (!isValid) {
+      setErrors(validationErrors);
+      return;
+    }
+
     setLoading(true);
-    setError('');
+    setErrors({});
 
     try {
-      // Récupérer tous les utilisateurs
-      const response = await axios.get('/odata/v4/catalog/Users');
-      const users = response.data.value || response.data;
-      
-      // Vérifier les identifiants
-      const user = users.find(u => 
-        u.username === formData.username && 
-        u.password === formData.password &&
-        u.isActive === true
+      const sanitizedData = sanitizeData(formData);
+      const userData = await userService.authenticate(
+        sanitizedData.username, 
+        sanitizedData.password
       );
-
-      if (user) {
-        // Connexion réussie
-        login({
-          id: user.ID,
-          username: user.username,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role
-        });
-      } else {
-        setError('Nom d\'utilisateur ou mot de passe incorrect');
-      }
+      
+      login(userData);
     } catch (err) {
-      setError('Erreur de connexion. Veuillez réessayer.');
+      showError(err.message || MESSAGES.ERROR.LOGIN_FAILED);
     } finally {
       setLoading(false);
     }
-  };
+  }, [formData, login, showError]);
 
   return (
     <div className="login-container">
@@ -68,13 +72,6 @@ const Login = () => {
         </div>
 
         <form className="login-form" onSubmit={handleSubmit}>
-          {error && (
-            <div className="alert alert-error">
-              <span className="alert-icon">❌</span>
-              <span className="alert-message">{error}</span>
-            </div>
-          )}
-
           <div className="form-group">
             <label htmlFor="username" className="form-label">Nom d'utilisateur</label>
             <input
@@ -83,11 +80,12 @@ const Login = () => {
               name="username"
               value={formData.username}
               onChange={handleChange}
-              className="form-input"
+              className={`form-input ${errors.username ? 'error' : ''}`}
               placeholder="Entrez votre nom d'utilisateur"
               required
               disabled={loading}
             />
+            {errors.username && <span className="error-message">{errors.username}</span>}
           </div>
 
           <div className="form-group">
@@ -98,11 +96,12 @@ const Login = () => {
               name="password"
               value={formData.password}
               onChange={handleChange}
-              className="form-input"
+              className={`form-input ${errors.password ? 'error' : ''}`}
               placeholder="Entrez votre mot de passe"
               required
               disabled={loading}
             />
+            {errors.password && <span className="error-message">{errors.password}</span>}
           </div>
 
           <button 

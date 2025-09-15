@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAlert } from '../hooks/useAlert';
+import { useAlert } from '../hooks/useAlert.jsx';
 import Alert from './Alert';
 
 const AlertContainer = () => {

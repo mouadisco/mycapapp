@@ -1,6 +1,19 @@
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback, createContext, useContext } from 'react';
 
+// Créer le contexte pour les alertes
+const AlertContext = createContext();
+
+// Hook pour utiliser les alertes
 export const useAlert = () => {
+  const context = useContext(AlertContext);
+  if (!context) {
+    throw new Error('useAlert must be used within an AlertProvider');
+  }
+  return context;
+};
+
+// Logique des alertes
+const useAlertMethods = () => {
   const [alerts, setAlerts] = useState([]);
 
   const showAlert = useCallback((type, message, duration = 3000) => {
@@ -52,4 +65,15 @@ export const useAlert = () => {
     removeAlert,
     clearAllAlerts
   };
+};
+
+// Provider pour les alertes
+export const AlertProvider = ({ children }) => {
+  const alertMethods = useAlertMethods();
+  
+  return (
+    <AlertContext.Provider value={alertMethods}>
+      {children}
+    </AlertContext.Provider>
+  );
 };

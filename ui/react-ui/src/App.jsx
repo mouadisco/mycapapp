@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import React, { useState, useCallback } from 'react';
 
 // Import Components
 import Header from './components/Header';
@@ -7,102 +6,78 @@ import BookForm from './components/BookForm';
 import BookLibrary from './components/BookLibrary';
 import UserManagement from './components/UserManagement';
 import AdminNavigation from './components/AdminNavigation';
-import Alert from './components/Alert';
+import AlertContainer from './components/AlertContainer';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './components/Login';
 
 // Import Contexts
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
+// Import Hooks
+import { useBooks } from './hooks/useBooks';
+import { useAlert, AlertProvider } from './hooks/useAlert.jsx';
+
+// Import Constants
+import { ADMIN_TABS, MESSAGES } from './constants';
+
 // Import Styles
 import './styles/design-system.css';
 
 function AppContent() {
-  const [books, setBooks] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [activeTab, setActiveTab] = useState('books');
-  const { login, isAdmin } = useAuth();
+  const [activeTab, setActiveTab] = useState(ADMIN_TABS.BOOKS);
+  const { isAdmin } = useAuth();
+  const { showSuccess, showError } = useAlert();
+  
+  const {
+    books,
+    loading: booksLoading,
+    error: booksError,
+    addBook,
+    updateBook,
+    deleteBook,
+    clearError: clearBooksError
+  } = useBooks();
 
-  // Load books from API
-  const loadBooks = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      const response = await axios.get('/odata/v4/catalog/Books?$orderby=ID');
-      setBooks(response.data.value || response.data);
-    } catch (err) {
-      setError(err?.response?.data?.error?.message || err?.message || 'Failed to load books');
-    } finally {
-      setLoading(false);
+  // Gestionnaires optimisés avec useCallback
+  const handleAddBook = useCallback(async (bookData) => {
+    const result = await addBook(bookData);
+    if (result.success) {
+      showSuccess(result.message);
+    } else {
+      showError(result.message);
     }
-  };
+  }, [addBook, showSuccess, showError]);
 
-  // Load books on component mount
-  useEffect(() => {
-    loadBooks();
+  const handleUpdateStock = useCallback(async (bookId, stockData) => {
+    const result = await updateBook(bookId, stockData);
+    if (!result.success) {
+      showError(result.message);
+    }
+  }, [updateBook, showError]);
+
+  const handleDeleteBook = useCallback(async (bookId) => {
+    const book = books.find(b => b.ID === bookId);
+    const bookTitle = book?.title || 'ce livre';
+    
+    if (window.confirm(MESSAGES.CONFIRM.DELETE_BOOK(bookTitle))) {
+      const result = await deleteBook(bookId);
+      if (result.success) {
+        showSuccess(result.message);
+      } else {
+        showError(result.message);
+      }
+    }
+  }, [books, deleteBook, showSuccess, showError]);
+
+  const handleTabChange = useCallback((tab) => {
+    setActiveTab(tab);
   }, []);
 
-  // Add new book
-  const handleAddBook = async (bookData) => {
-    try {
-      setError('');
-      setSuccess('');
-      
-      console.log('handleAddBook received:', bookData);
-      
-      const payload = {
-        title: bookData.title.trim(),
-        author: bookData.author.trim(),
-        stock: Math.max(0, Number(bookData.stock) || 0)
-      };
-      
-      console.log('Sending to API:', payload);
-      
-      const response = await axios.post('/odata/v4/catalog/Books', payload);
-      console.log('API response:', response.data);
-      
-      setSuccess(`Book "${bookData.title}" added successfully!`);
-      await loadBooks();
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      console.error('Error adding book:', err);
-      setError(err?.response?.data?.error?.message || err?.message || 'Failed to add book');
-    }
-  };
-
-  // Update book stock
-  const handleUpdateStock = async (bookId, stockData) => {
-    try {
-      setError('');
-      await axios.patch(`/odata/v4/catalog/Books(${bookId})`, stockData);
-      await loadBooks();
-    } catch (err) {
-      setError(err?.response?.data?.error?.message || err?.message || 'Failed to update book');
-    }
-  };
-
-  // Delete book
-  const handleDeleteBook = async (bookId) => {
-    try {
-      setError('');
-      await axios.delete(`/odata/v4/catalog/Books(${bookId})`);
-      setSuccess('Book deleted successfully!');
-      await loadBooks();
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError(err?.response?.data?.error?.message || err?.message || 'Failed to delete book');
-    }
-  };
-
-  // Clear alerts
-  const clearError = () => setError('');
-  const clearSuccess = () => setSuccess('');
+  // Affichage des erreurs de livres
+  if (booksError) {
+    showError(booksError);
+    clearBooksError();
+  }
 
   return (
     <ProtectedRoute>
@@ -110,63 +85,46 @@ function AppContent() {
         <Header />
         
         <main className="container">
-          {/* Success Alert */}
-          {success && (
-            <Alert 
-              type="success" 
-              message={success} 
-              onClose={clearSuccess}
-            />
-          )}
-          
-          {/* Error Alert */}
-          {error && (
-            <Alert 
-              type="error" 
-              message={error} 
-              onClose={clearError}
-            />
-          )}
+          {/* Container pour les alertes */}
+          <AlertContainer />
 
-          {/* Admin Navigation */}
+          {/* Navigation Admin */}
           {isAdmin() && (
             <AdminNavigation 
               activeTab={activeTab} 
-              onTabChange={setActiveTab} 
+              onTabChange={handleTabChange} 
             />
           )}
           
-          {/* Content based on user role and active tab */}
+          {/* Contenu basé sur le rôle et l'onglet actif */}
           {isAdmin() ? (
-            // Admin view with tabs
+            // Vue admin avec onglets
             <>
-              {activeTab === 'books' && (
+              {activeTab === ADMIN_TABS.BOOKS && (
                 <>
-                  {/* Add Book Form */}
                   <BookForm 
                     onSubmit={handleAddBook}
-                    loading={loading}
+                    loading={booksLoading}
                   />
                   
-                  {/* Book Library */}
                   <BookLibrary 
                     books={books}
-                    loading={loading}
+                    loading={booksLoading}
                     onUpdateStock={handleUpdateStock}
                     onDelete={handleDeleteBook}
                   />
                 </>
               )}
               
-              {activeTab === 'users' && (
+              {activeTab === ADMIN_TABS.USERS && (
                 <UserManagement />
               )}
             </>
           ) : (
-            // Regular user view - only books (read-only)
+            // Vue utilisateur - livres en lecture seule
             <BookLibrary 
               books={books}
-              loading={loading}
+              loading={booksLoading}
               onUpdateStock={handleUpdateStock}
               onDelete={handleDeleteBook}
             />
@@ -180,7 +138,9 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <AlertProvider>
+        <AppContent />
+      </AlertProvider>
     </AuthProvider>
   );
 }
